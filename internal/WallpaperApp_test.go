@@ -13,130 +13,130 @@ import (
 const cacheFolder = "../test/cache"
 const configFolder = "../test"
 
-const TestMontage1File = "test/montage1.jpeg"
+const TestMontage1File = "../test/montage1.jpeg"
 
-const TestMontage2File = "test/montage2.jpeg"
+const TestMontage2File = "../test/montage2.jpeg"
 
-var appConfig *WallpaperAppConfig = &WallpaperAppConfig{}
+var appConfig *AppConfig = &AppConfig{}
 
 var config1 = MontageConfig{
 	ID:           "screen1",
 	Name:         "Screen 1",
-	Filename:     "test/montage1.jpeg",
+	Filename:     TestMontage1File,
 	Width:        1680,
 	Height:       1080,
 	Rows:         1,
 	Border:       1,
 	Resize:       MontageResizeNone, // 'height', 'width', 'crop', 'scale', 'none'
-	MissingImage: "test/missing.jpeg'",
+	MissingImage: "../test/missing.jpeg'",
 	WaitTime:     11,
-}
-var images1 = []*ImagePlacement{
-	{Source: "test/ipcam/snowshed/image/0",
-		Resize: "height",
-		Y:      30,
-	},
-	{Source: "test/ipcam/kelowna1/image/0",
-		Resize: "width",
-		Y:      0,
+	ImagePlacements: []ImagePlacement{
+		{Source: "test/ipcam/snowshed/image/0",
+			Resize: "height",
+			Y:      30,
+		},
+		{Source: "test/ipcam/kelowna1/image/0",
+			Resize: "width",
+			Y:      0,
+		},
 	},
 }
 
 var config2 = &MontageConfig{
 	ID:           "screen2",
 	Name:         "Screen 2",
-	Filename:     "test/montage2.jpeg",
+	Filename:     TestMontage2File,
 	Width:        1680,
 	Height:       1050,
 	Rows:         2,
 	Border:       4,
 	Resize:       MontageResizeNone,
-	MissingImage: "test/missing.jpeg'",
+	MissingImage: "../test/missing.jpeg'",
 	WaitTime:     11,
-}
-var images2 = []*ImagePlacement{
-	{Source: "test/ipcam/snowshed/image/0",
-		Resize: "height",
-	},
-	{Source: "test/ipcam/kelowna1/image/0",
-		Resize: "width",
-	},
-	{Source: "test/ipcam/cam6/image/0",
-		Resize: "height",
-	},
-	{Source: "test/ipcam/cam7/image/0",
-		Resize: "width",
+	ImagePlacements: []ImagePlacement{
+		{Source: "test/ipcam/snowshed/image/0",
+			Resize: "height",
+		},
+		{Source: "test/ipcam/kelowna1/image/0",
+			Resize: "width",
+		},
+		{Source: "test/ipcam/cam6/image/0",
+			Resize: "height",
+		},
+		{Source: "test/ipcam/cam7/image/0",
+			Resize: "width",
+		},
 	},
 }
 
 // Create a montage and layout 2 images onto its canvas
 func TestMontageLayout(t *testing.T) {
-	pub, _ := publisher.NewAppPublisher(AppID, configFolder, cacheFolder, appConfig, false)
+	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
 	app := NewWallpaperApp(appConfig, pub)
-	wallpaper := app.AddWallpaper(&config1, images1)
-	assert.NotNil(t, wallpaper)
+	montage := app.CreateWallpaper(&config1)
+	assert.NotNil(t, montage)
 
-	assert.Len(t, wallpaper.ImagePlacement, 2, "Expected 2 image layouts for this montage")
-	assert.Equal(t, 1680, wallpaper.canvas.Rect.Max.X)
+	assert.Len(t, montage.actualPlacement, 2, "Expected 2 image placements for this montage")
+	assert.Equal(t, 1680, montage.canvas.Rect.Max.X)
 
-	image, _ := ioutil.ReadFile("test/camera-sshed.jpeg")
-	wallpaper.OnImageUpdate("test/ipcam/snowshed/image/0", image)
-	image, _ = ioutil.ReadFile("test/camera-zkioskn.jpeg")
-	wallpaper.OnImageUpdate("test/ipcam/kelowna1/image/0", image)
-	err := wallpaper.WriteToFile(TestMontage1File)
+	image, _ := ioutil.ReadFile("../test/camera-sshed.jpeg")
+	montage.UpdateImage("test/ipcam/snowshed/image/0", image)
+	image, _ = ioutil.ReadFile("../test/camera-zkioskn.jpeg")
+	montage.UpdateImage("test/ipcam/kelowna1/image/0", image)
+	err := montage.WriteToFile(TestMontage1File)
 	assert.NoError(t, err)
 }
 
 // Combine 4 test images into a montage and save as tmp/montage2.jpeg
 func TestImageUpdate(t *testing.T) {
-	pub, _ := publisher.NewAppPublisher(AppID, configFolder, cacheFolder, appConfig, false)
+	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
 	app := NewWallpaperApp(appConfig, pub)
-	wallpaper := app.AddWallpaper(config2, images2)
+	montage := app.CreateWallpaper(config2)
 
-	image, _ := ioutil.ReadFile("test/camera-sshed.jpeg")
-	wallpaper.OnImageUpdate("test/ipcam/snowshed/image/0", image)
-	image, _ = ioutil.ReadFile("test/camera-zkioskn.jpeg")
-	wallpaper.OnImageUpdate("test/ipcam/kelowna1/image/0", image)
-	image, _ = ioutil.ReadFile("test/camera-cam6.jpeg")
-	wallpaper.OnImageUpdate("test/ipcam/cam6/image/0", image)
-	image, _ = ioutil.ReadFile("test/camera-cam7.jpeg")
-	wallpaper.OnImageUpdate("test/ipcam/cam7/image/0", image)
+	image, _ := ioutil.ReadFile("../test/camera-sshed.jpeg")
+	montage.UpdateImage("test/ipcam/snowshed/image/0", image)
+	image, _ = ioutil.ReadFile("../test/camera-zkioskn.jpeg")
+	montage.UpdateImage("test/ipcam/kelowna1/image/0", image)
+	image, _ = ioutil.ReadFile("../test/camera-cam6.jpeg")
+	montage.UpdateImage("test/ipcam/cam6/image/0", image)
+	image, _ = ioutil.ReadFile("../test/camera-cam7.jpeg")
+	montage.UpdateImage("test/ipcam/cam7/image/0", image)
 
-	assert.Equal(t, 4, wallpaper.UpdateCount, "4 Updates expected")
+	assert.Equal(t, 4, montage.UpdateCount, "4 Updates expected")
 
 	_ = os.Remove(TestMontage2File)
-	err := wallpaper.WriteToFile(TestMontage2File)
+	err := montage.WriteToFile(TestMontage2File)
 	assert.NoError(t, err)
 	assert.FileExists(t, TestMontage2File, "Montage file missing")
 }
 
 func BenchmarkWallpaper(b *testing.B) {
-	pub, _ := publisher.NewAppPublisher(AppID, configFolder, cacheFolder, appConfig, false)
+	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
 	app := NewWallpaperApp(appConfig, pub)
-	wallpaper := app.AddWallpaper(config2, images2)
+	montage := app.CreateWallpaper(config2)
 
-	image1, _ := ioutil.ReadFile("test/camera-sshed.jpeg")
-	image2, _ := ioutil.ReadFile("test/camera-zkioskn.jpeg")
-	image3, _ := ioutil.ReadFile("test/camera-cam6.jpeg")
+	image1, _ := ioutil.ReadFile("../test/camera-sshed.jpeg")
+	image2, _ := ioutil.ReadFile("../test/camera-zkioskn.jpeg")
+	image3, _ := ioutil.ReadFile("../test/camera-cam6.jpeg")
 	//image4, _ := ioutil.ReadFile("test/camera-cam7.jpeg")
-	image4, _ := ioutil.ReadFile("test/circles.png")
+	image4, _ := ioutil.ReadFile("../test/circles.png")
 
 	t1 := time.Now()
 	for i := 0; i < 25; i++ {
-		wallpaper.OnImageUpdate("test/ipcam/snowshed/image/0", image1)
-		wallpaper.OnImageUpdate("test/ipcam/kelowna1/image/0", image2)
-		wallpaper.OnImageUpdate("test/ipcam/cam6/image/0", image3)
-		wallpaper.OnImageUpdate("test/ipcam/cam7/image/0", image4)
-		data, err := wallpaper.ExportMontage()
+		montage.UpdateImage("test/ipcam/snowshed/image/0", image1)
+		montage.UpdateImage("test/ipcam/kelowna1/image/0", image2)
+		montage.UpdateImage("test/ipcam/cam6/image/0", image3)
+		montage.UpdateImage("test/ipcam/cam7/image/0", image4)
+		data, err := montage.ExportMontageAsJPEG()
 		assert.NoError(b, err)
 		assert.NotNil(b, data)
 	}
 	t2 := time.Now()
 	duration := t2.Sub(t1)
-	err := wallpaper.WriteToFile("test/montage.jpeg")
+	err := montage.WriteToFile("../test/montage.jpeg")
 	assert.NoError(b, err)
 
-	b.Logf("OnImageUpdate Duration: %.0f msec per update of 4 with export", (duration.Seconds() / 25 * 1000))
+	b.Logf("UpdateImage Duration: %.0f msec per update of 4", (duration.Seconds() / 25 * 1000))
 
-	assert.Equal(b, 100, wallpaper.UpdateCount, "Updates expected")
+	assert.Equal(b, 100, montage.UpdateCount, "Updates expected")
 }

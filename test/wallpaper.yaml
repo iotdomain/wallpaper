@@ -8,22 +8,24 @@
 #UseLibJPEG: true
 
 wallpapers:
-  - name: "screen 1"
+  - ID: "screen1"
+    border: 12
+    name: "Screen 1"
     width: 1920
     height: 1080
     rows: 1
-    border: 12
     resize: "scale"
     updateInterval: 3
-    images:
+    imagePlacements:
       - source: "http://www.ls.eso.org/lasilla/dimm/lasc/gifs/last.gif"
         interval: 1800
       - source: "test/ipcam/Kelowna/image/0/$raw"
-  - name: "screen 2"
+  - ID: "screen2"
+    name: "Screen 2"
     width: 1920
     height: 1080
     rows: 2
-    images:
+    imagePlacements:
       - source: "http://images.drivebc.ca/bchighwaycam/pub/cameras/2.jpg"
         interval: 600
       - source: "http://images.drivebc.ca/bchighwaycam/pub/cameras/2.jpg"

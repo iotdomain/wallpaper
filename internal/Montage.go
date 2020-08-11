@@ -7,6 +7,8 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"io/ioutil"
+	"os"
 
 	"github.com/disintegration/imaging"
 	libjpeg "github.com/pixiv/go-libjpeg/jpeg"
@@ -21,26 +23,26 @@ type Montage struct {
 	useLibJpeg  bool          // use the faster libjpeg instead of the image library to draw images on canvas.
 	isActive    bool          // Montage background update is active
 	//layout      []MontageImage  // Actual layout of images on canvas
-	canvas *image.RGBA    // canvas to draw the montage on
-	logger *logrus.Logger // module logger
+	canvas *image.RGBA // canvas to draw the montage on
 	// imagePlacement []*ImagePlacement      // Configuration layout of images with their source
-	resizing imaging.ResampleFilter // default method used for resizing
+	resizing        imaging.ResampleFilter // default method used for resizing
+	actualPlacement []ImagePlacement       // Actual placement of the images in this montage
 }
 
 // MontageConfig containing the definition of a wallpaper
 type MontageConfig struct {
-	ID           string           `yaml:"ID"`                 // ID of the wallpaper
-	Border       int              `yaml:"border,omitempty"`   // border around image
-	Name         string           `yaml:"name"`               // montage name
-	Filename     string           `yaml:"filename,omitempty"` // file to save montage image as
-	Height       int              `yaml:"height,omitempty"`   // montage height
-	Width        int              `yaml:"width,omitempty"`    // montage width
-	WaitTime     int              `yaml:"waitTime,omitempty"` // Time to wait for updates and rebuild the montage. Default is 3 seconds
-	Publish      bool             `yaml:"publish"`            // publish the resulting image
-	Resize       MontageResize    `yaml:"resize,omitempty"`   // Image resize in this montage: 'crop', 'width' or 'height'. Default is height.
-	Rows         int              `yaml:"rows,omitempty"`     // Number of rows to organize images in.
-	MissingImage string           `yaml:"noimage,omitempty"`  // substitute for missing images, default is to keep the last image
-	Images       []ImagePlacement `yaml:"images"`             // The images to montage
+	ID              string           `yaml:"ID"`                 // ID of the wallpaper
+	Border          int              `yaml:"border,omitempty"`   // border around image
+	Name            string           `yaml:"name"`               // montage name
+	Filename        string           `yaml:"filename,omitempty"` // file to save montage image as
+	Height          int              `yaml:"height,omitempty"`   // montage height
+	Width           int              `yaml:"width,omitempty"`    // montage width
+	WaitTime        int              `yaml:"waitTime,omitempty"` // Time to wait for updates and rebuild the montage. Default is 3 seconds
+	Publish         bool             `yaml:"publish"`            // publish the resulting image
+	Resize          MontageResize    `yaml:"resize,omitempty"`   // Image resize in this montage: 'crop', 'width' or 'height'. Default is height.
+	Rows            int              `yaml:"rows,omitempty"`     // Number of rows to organize images in.
+	MissingImage    string           `yaml:"noimage,omitempty"`  // substitute for missing images, default is to keep the last image
+	ImagePlacements []ImagePlacement `yaml:"images"`             // The images to montage
 }
 
 // ImagePlacement describes the placement of an image on the canvas
@@ -67,72 +69,6 @@ const (
 	MontageResizeScale  MontageResize = "scale"
 	MontageResizeWidth  MontageResize = "width"
 )
-
-// MakeGridLayout calculates the placement of each image in the montage based on the configuration
-// returns a new layout with actual location and size of each image
-// This is a simple grid layout, not optimizing for individual image sizes
-func MakeGridLayout(config *MontageConfig, images []*ImagePlacement) []*ImagePlacement {
-
-	cols := (len(images) + (config.Rows - 1)) / config.Rows
-	if cols < 1 {
-		cols = 1
-	}
-	rows := config.Rows
-	// Leave room for the border
-	imageWidth := 0
-	imageHeight := int((config.Height-config.Border)/rows) - config.Border
-
-	result := make([]*ImagePlacement, 0)
-	x := config.Border
-	y := config.Border
-	index := 0
-	// filename := ""
-	for r := 0; r < rows; r++ {
-		x = config.Border
-		for c := 0; c < cols; c++ {
-			if index < len(images) {
-				// determine the image width in one of two ways, configured width or remaining space
-				imageConfig := images[index]
-				// filename = montage.getTopicFilename(imageConfig.Topic)
-				resizeMethod := config.Resize
-				if imageConfig.Resize != "" {
-					resizeMethod = imageConfig.Resize
-				}
-				//if imageConfig.X > 0 {
-				//	// force x-offset
-				//	x = imageConfig.X
-				//}
-				//if imageConfig.Y > 0 {
-				//	// force y-offset
-				//	y = imageConfig.Y
-				//}
-				if imageConfig.Width > 0 {
-					// force image width
-					imageWidth = imageConfig.Width
-				} else {
-					// space evenly in remaining width. TODO: Actual imageWidth/Height is the remainder after all fixed widths
-					remainingCols := cols - c
-					remainingWidth := config.Width - x - config.Border*remainingCols
-					imageWidth = remainingWidth / remainingCols
-				}
-
-				imageLayout := &ImagePlacement{
-					Source: imageConfig.Source,
-					X:      x + imageConfig.X,
-					Y:      y + imageConfig.Y,
-					Width:  imageWidth,
-					Height: imageHeight,
-					Resize: resizeMethod,
-				}
-				result = append(result, imageLayout)
-			}
-			index++
-			x += imageWidth + config.Border
-		}
-		y += imageHeight + config.Border
-	}
-	return result
-}
 
 /*
 * Draw the image from the layout onto the canvas at the layout position and increase UpdateCount
@@ -188,11 +124,11 @@ func (montage *Montage) DrawImageIntoLayout(layout *ImagePlacement, imageData []
 	img, imageType, err := image.Decode(buffer)
 
 	if err != nil {
-		montage.logger.Errorf("montage.DrawImageIntoLayout: Failed decoding image for montage %s: %s",
-			montage.Config.Name, err)
+		logrus.Errorf("montage.DrawImageIntoLayout: Failed decoding image '%s' for montage '%s': %s",
+			layout.Source, montage.Config.Name, err)
 		return err
 	}
-	montage.logger.Debugf("montage.DrawImageIntoLayout: Image of layout %s of type %s decoded", layout.Source, imageType)
+	logrus.Debugf("montage.DrawImageIntoLayout: Image of layout %s of type %s decoded", layout.Source, imageType)
 	err = montage.drawImage(img, layout)
 	return err
 }
@@ -210,18 +146,18 @@ func (montage *Montage) DrawJpegIntoLayout(layout *ImagePlacement, imageData []b
 	img, err := libjpeg.Decode(buffer, opts)
 	//img, err := prism.Decode(buffer)
 	if err != nil {
-		montage.logger.Errorf("montage.DrawJpegIntoLayout: Failed decoding jpeg image for montage %s: %s",
+		logrus.Errorf("montage.DrawJpegIntoLayout: Failed decoding jpeg image for montage %s: %s",
 			montage.Config.Name, err)
 		return err
 	}
-	montage.logger.Debugf("montage.DrawJpegIntoLayout: Jpeg Image of layout %s decoded", layout.Source)
+	logrus.Debugf("montage.DrawJpegIntoLayout: Jpeg Image of layout %s decoded", layout.Source)
 	err = montage.drawImage(img, layout)
 	return err
 }
 
-// CreateMontageAsJPEG retrieves the montage as JPEG image
-func (montage *Montage) CreateMontageAsJPEG() ([]byte, error) {
-	montage.logger.Debugf("montage.ExportMontage %s", montage.Config.Name)
+// ExportMontageAsJPEG retrieves the montage as JPEG image
+func (montage *Montage) ExportMontageAsJPEG() ([]byte, error) {
+	logrus.Debugf("montage.ExportMontage %s", montage.Config.Name)
 	// export image as JPEG
 	buf := new(bytes.Buffer)
 	var err error
@@ -235,7 +171,7 @@ func (montage *Montage) CreateMontageAsJPEG() ([]byte, error) {
 		err = jpeg.Encode(buf, montage.canvas, &opt)
 	}
 	if err != nil {
-		montage.logger.Errorf("montage.ExportMontage Error encoding canvas of montage %s: %s", montage.Config.Name, err)
+		logrus.Errorf("montage.ExportMontage Error encoding canvas of montage %s: %s", montage.Config.Name, err)
 		return nil, err
 	}
 	imageData := buf.Bytes()
@@ -244,10 +180,103 @@ func (montage *Montage) CreateMontageAsJPEG() ([]byte, error) {
 	return imageData, err
 }
 
+// UpdateImage writes image to canvas
+// This increments the UpdateCount when the image ID is recognized
+func (montage *Montage) UpdateImage(source string, payload []byte) {
+	logrus.Debugf("montage.UpdateImage: source=%s for montage %s", source, montage.Config.Name)
+
+	for _, placement := range montage.Config.ImagePlacements {
+		// Finish the loop.
+		// It is possible that multiple layouts use the same source, for example one image is zoomed in.
+		if placement.Source == source {
+			if montage.useLibJpeg {
+				_ = montage.DrawImageIntoLayout(&placement, payload)
+			} else {
+				_ = montage.DrawImageIntoLayout(&placement, payload)
+			}
+		}
+	}
+}
+
+// WriteToFile writes the montage image to the given filename
+func (montage *Montage) WriteToFile(filename string) error {
+	jpegData, err := montage.ExportMontageAsJPEG()
+	err = ioutil.WriteFile(filename, jpegData, os.ModePerm)
+	return err
+}
+
+// MakeGridLayout calculates the actual placement of each image in the montage configuration
+// returns a new layout with actual location and size of each image
+// This is a simple grid layout, not optimizing for individual image sizes
+func MakeGridLayout(config *MontageConfig) []ImagePlacement {
+
+	cols := (len(config.ImagePlacements) + (config.Rows - 1)) / config.Rows
+	if cols < 1 {
+		cols = 1
+	}
+	rows := config.Rows
+	// Leave room for the border
+	imageWidth := 0
+	imageHeight := int((config.Height-config.Border)/rows) - config.Border
+
+	result := make([]ImagePlacement, 0)
+	x := config.Border
+	y := config.Border
+	index := 0
+	// filename := ""
+	for r := 0; r < rows; r++ {
+		x = config.Border
+		for c := 0; c < cols; c++ {
+			if index < len(config.ImagePlacements) {
+				// determine the image width in one of two ways, configured width or remaining space
+				imageConfig := config.ImagePlacements[index]
+				// filename = montage.getTopicFilename(imageConfig.Topic)
+				resizeMethod := config.Resize
+				if imageConfig.Resize != "" {
+					resizeMethod = imageConfig.Resize
+				}
+				//if imageConfig.X > 0 {
+				//	// force x-offset
+				//	x = imageConfig.X
+				//}
+				//if imageConfig.Y > 0 {
+				//	// force y-offset
+				//	y = imageConfig.Y
+				//}
+				if imageConfig.Width > 0 {
+					// force image width
+					imageWidth = imageConfig.Width
+				} else {
+					// space evenly in remaining width. TODO: Actual imageWidth/Height is the remainder after all fixed widths
+					remainingCols := cols - c
+					remainingWidth := config.Width - x - config.Border*remainingCols
+					imageWidth = remainingWidth / remainingCols
+				}
+
+				imageLayout := ImagePlacement{
+					Source: imageConfig.Source,
+					X:      x + imageConfig.X,
+					Y:      y + imageConfig.Y,
+					Width:  imageWidth,
+					Height: imageHeight,
+					Resize: resizeMethod,
+				}
+				result = append(result, imageLayout)
+			}
+			index++
+			x += imageWidth + config.Border
+		}
+		y += imageHeight + config.Border
+	}
+	return result
+}
+
 // NewMontage initialises a new Montage instance for the given Config
-func NewMontage(config *MontageConfig, logger *logrus.Logger, useLibJpeg bool) *Montage {
+// This calculates the actual placement based on the image sizes from the config
+func NewMontage(config *MontageConfig, useLibJpeg bool) *Montage {
+	actualPlacement := MakeGridLayout(config)
+
 	builder := Montage{
-		logger:     logger,
 		Config:     *config,
 		isActive:   false,
 		useLibJpeg: useLibJpeg,
@@ -269,7 +298,8 @@ func NewMontage(config *MontageConfig, logger *logrus.Logger, useLibJpeg bool) *
 		//Resizing: imaging.Welch,               // good, 147ms
 
 		// setup the canvas to draw the images onto
-		canvas: image.NewRGBA(image.Rect(0, 0, config.Width, config.Height)),
+		canvas:          image.NewRGBA(image.Rect(0, 0, config.Width, config.Height)),
+		actualPlacement: actualPlacement,
 	}
 	rgbaBlack := color.NRGBA{R: 0, G: 0, B: 0, A: 0}
 	draw.Draw(builder.canvas, builder.canvas.Bounds(), &image.Uniform{C: rgbaBlack}, image.ZP, draw.Src)

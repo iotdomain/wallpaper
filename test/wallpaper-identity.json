@@ -1,0 +1,14 @@
+{
+  "address": "test/wallpaper/$identity",
+  "domain": "test",
+  "issuerId": "wallpaper",
+  "location": "local",
+  "organization": "",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5cKMu5dZHP64QxYwdHVaCJxKoBNe\nsGeNRnNSYGSyGAysDLukB366ZQyU2P/KWAH+6OsyG4soe514GdZVCevutA==\n-----END PUBLIC KEY-----\n",
+  "publisherId": "wallpaper",
+  "validUntil": "2021-08-10T21:14:40.201-0700",
+  "signature": "MEQCIAWZrZyVlBb0DTh5PJE4HWikyzYhgcrl-ZsfJ4mMIDpiAiB3Rd05sOElWhMkgU6JM2ShDaaLIhPbnSjDPP-NeB7wmQ==",
+  "timestamp": "2020-08-10T21:14:40.201-0700",
+  "privateKey": "-----BEGIN PRIVATE KEY-----\nMHcCAQEEIMtUo4BbwLASLfSIj8HIEbeN4lZRAsRFpT0Yh+tC94XGoAoGCCqGSM49\nAwEHoUQDQgAE5cKMu5dZHP64QxYwdHVaCJxKoBNesGeNRnNSYGSyGAysDLukB366\nZQyU2P/KWAH+6OsyG4soe514GdZVCevutA==\n-----END PRIVATE KEY-----\n",
+  "sender": ""
+ }

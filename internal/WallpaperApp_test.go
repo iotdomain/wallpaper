@@ -13,16 +13,14 @@ import (
 const cacheFolder = "../test/cache"
 const configFolder = "../test"
 
-const TestMontage1File = "../test/montage1.jpeg"
-
-const TestMontage2File = "../test/montage2.jpeg"
+const TestMontageFile = "../test/montage.jpeg"
 
 var appConfig *AppConfig = &AppConfig{}
 
 var config1 = MontageConfig{
 	ID:           "screen1",
 	Name:         "Screen 1",
-	Filename:     TestMontage1File,
+	Filename:     TestMontageFile,
 	Width:        1680,
 	Height:       1080,
 	Rows:         1,
@@ -30,7 +28,7 @@ var config1 = MontageConfig{
 	Resize:       MontageResizeNone, // 'height', 'width', 'crop', 'scale', 'none'
 	MissingImage: "../test/missing.jpeg'",
 	WaitTime:     11,
-	ImagePlacements: []ImagePlacement{
+	ProposedPlacements: []ImagePlacement{
 		{Source: "test/ipcam/snowshed/image/0",
 			Resize: "height",
 			Y:      30,
@@ -45,7 +43,7 @@ var config1 = MontageConfig{
 var config2 = &MontageConfig{
 	ID:           "screen2",
 	Name:         "Screen 2",
-	Filename:     TestMontage2File,
+	Filename:     TestMontageFile,
 	Width:        1680,
 	Height:       1050,
 	Rows:         2,
@@ -53,7 +51,7 @@ var config2 = &MontageConfig{
 	Resize:       MontageResizeNone,
 	MissingImage: "../test/missing.jpeg'",
 	WaitTime:     11,
-	ImagePlacements: []ImagePlacement{
+	ProposedPlacements: []ImagePlacement{
 		{Source: "test/ipcam/snowshed/image/0",
 			Resize: "height",
 		},
@@ -71,6 +69,7 @@ var config2 = &MontageConfig{
 
 // Create a montage and layout 2 images onto its canvas
 func TestMontageLayout(t *testing.T) {
+	os.Remove(TestMontageFile)
 	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
 	app := NewWallpaperApp(appConfig, pub)
 	montage := app.CreateWallpaper(&config1)
@@ -83,7 +82,7 @@ func TestMontageLayout(t *testing.T) {
 	montage.UpdateImage("test/ipcam/snowshed/image/0", image)
 	image, _ = ioutil.ReadFile("../test/camera-zkioskn.jpeg")
 	montage.UpdateImage("test/ipcam/kelowna1/image/0", image)
-	err := montage.WriteToFile(TestMontage1File)
+	err := montage.WriteToFile(TestMontageFile)
 	assert.NoError(t, err)
 }
 
@@ -104,13 +103,14 @@ func TestImageUpdate(t *testing.T) {
 
 	assert.Equal(t, 4, montage.UpdateCount, "4 Updates expected")
 
-	_ = os.Remove(TestMontage2File)
-	err := montage.WriteToFile(TestMontage2File)
+	_ = os.Remove(TestMontageFile)
+	err := montage.WriteToFile(TestMontageFile)
 	assert.NoError(t, err)
-	assert.FileExists(t, TestMontage2File, "Montage file missing")
+	assert.FileExists(t, TestMontageFile, "Montage file missing")
 }
 
 func BenchmarkWallpaper(b *testing.B) {
+	os.Remove(TestMontageFile)
 	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
 	app := NewWallpaperApp(appConfig, pub)
 	montage := app.CreateWallpaper(config2)
@@ -133,7 +133,7 @@ func BenchmarkWallpaper(b *testing.B) {
 	}
 	t2 := time.Now()
 	duration := t2.Sub(t1)
-	err := montage.WriteToFile("../test/montage.jpeg")
+	err := montage.WriteToFile(TestMontageFile)
 	assert.NoError(b, err)
 
 	b.Logf("UpdateImage Duration: %.0f msec per update of 4", (duration.Seconds() / 25 * 1000))

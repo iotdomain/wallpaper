@@ -23,26 +23,25 @@ type Montage struct {
 	useLibJpeg  bool          // use the faster libjpeg instead of the image library to draw images on canvas.
 	isActive    bool          // Montage background update is active
 	//layout      []MontageImage  // Actual layout of images on canvas
-	canvas *image.RGBA // canvas to draw the montage on
-	// imagePlacement []*ImagePlacement      // Configuration layout of images with their source
+	canvas          *image.RGBA            // canvas to draw the montage on
 	resizing        imaging.ResampleFilter // default method used for resizing
 	actualPlacement []ImagePlacement       // Actual placement of the images in this montage
 }
 
 // MontageConfig containing the definition of a wallpaper
 type MontageConfig struct {
-	ID              string           `yaml:"ID"`                 // ID of the wallpaper
-	Border          int              `yaml:"border,omitempty"`   // border around image
-	Name            string           `yaml:"name"`               // montage name
-	Filename        string           `yaml:"filename,omitempty"` // file to save montage image as
-	Height          int              `yaml:"height,omitempty"`   // montage height
-	Width           int              `yaml:"width,omitempty"`    // montage width
-	WaitTime        int              `yaml:"waitTime,omitempty"` // Time to wait for updates and rebuild the montage. Default is 3 seconds
-	Publish         bool             `yaml:"publish"`            // publish the resulting image
-	Resize          MontageResize    `yaml:"resize,omitempty"`   // Image resize in this montage: 'crop', 'width' or 'height'. Default is height.
-	Rows            int              `yaml:"rows,omitempty"`     // Number of rows to organize images in.
-	MissingImage    string           `yaml:"noimage,omitempty"`  // substitute for missing images, default is to keep the last image
-	ImagePlacements []ImagePlacement `yaml:"images"`             // The images to montage
+	ID                 string           `yaml:"ID"`                 // ID of the wallpaper
+	Border             int              `yaml:"border,omitempty"`   // border around image
+	Name               string           `yaml:"name"`               // montage name
+	Filename           string           `yaml:"filename,omitempty"` // file to save montage image as
+	Height             int              `yaml:"height,omitempty"`   // montage height
+	Width              int              `yaml:"width,omitempty"`    // montage width
+	WaitTime           int              `yaml:"waitTime,omitempty"` // Time to wait for updates and rebuild the montage. Default is 3 seconds
+	Publish            bool             `yaml:"publish"`            // publish the resulting image
+	Resize             MontageResize    `yaml:"resize,omitempty"`   // Image resize in this montage: 'crop', 'width' or 'height'. Default is height.
+	Rows               int              `yaml:"rows,omitempty"`     // Number of rows to organize images in.
+	MissingImage       string           `yaml:"noimage,omitempty"`  // substitute for missing images, default is to keep the last image
+	ProposedPlacements []ImagePlacement `yaml:"images"`             // Proposed placement of images to montage
 }
 
 // ImagePlacement describes the placement of an image on the canvas
@@ -185,7 +184,7 @@ func (montage *Montage) ExportMontageAsJPEG() ([]byte, error) {
 func (montage *Montage) UpdateImage(source string, payload []byte) {
 	logrus.Debugf("montage.UpdateImage: source=%s for montage %s", source, montage.Config.Name)
 
-	for _, placement := range montage.Config.ImagePlacements {
+	for _, placement := range montage.actualPlacement {
 		// Finish the loop.
 		// It is possible that multiple layouts use the same source, for example one image is zoomed in.
 		if placement.Source == source {
@@ -210,7 +209,7 @@ func (montage *Montage) WriteToFile(filename string) error {
 // This is a simple grid layout, not optimizing for individual image sizes
 func MakeGridLayout(config *MontageConfig) []ImagePlacement {
 
-	cols := (len(config.ImagePlacements) + (config.Rows - 1)) / config.Rows
+	cols := (len(config.ProposedPlacements) + (config.Rows - 1)) / config.Rows
 	if cols < 1 {
 		cols = 1
 	}
@@ -227,9 +226,9 @@ func MakeGridLayout(config *MontageConfig) []ImagePlacement {
 	for r := 0; r < rows; r++ {
 		x = config.Border
 		for c := 0; c < cols; c++ {
-			if index < len(config.ImagePlacements) {
+			if index < len(config.ProposedPlacements) {
 				// determine the image width in one of two ways, configured width or remaining space
-				imageConfig := config.ImagePlacements[index]
+				imageConfig := config.ProposedPlacements[index]
 				// filename = montage.getTopicFilename(imageConfig.Topic)
 				resizeMethod := config.Resize
 				if imageConfig.Resize != "" {

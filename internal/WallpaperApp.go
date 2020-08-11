@@ -85,7 +85,7 @@ func (app *WallpaperApp) CreateWallpaper(config *MontageConfig) *Montage {
 	// Subscribe to source images...
 	// TODO: can we define inputs that link/subscribe to other outputs?
 	// TODO: configure inputs
-	for index, placement := range config.ImagePlacements {
+	for index, placement := range config.ProposedPlacements {
 		// each image is an input
 		// input := pub.NewInput(wpID, types.InputTypeImage, strconv.Itoa(index))
 		// input.Attr[types.NodeAttrAddress] = placement.Source

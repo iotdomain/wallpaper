@@ -167,7 +167,7 @@ func (app *WallpaperApp) GenerateWallpaperImage(montage *Montage) {
 // HandleInputImage updates the wallpaper image
 func (app *WallpaperApp) HandleInputImage(input *types.InputDiscoveryMessage, sender string, image string) {
 	logrus.Infof("HandleInputUpdate: Update to input %s from '%s'", input.InputID, sender)
-	montage := app.GetWallpaper(input.DeviceID)
+	montage := app.GetWallpaper(input.NodeHWID)
 	montage.UpdateImage(input.Source, []byte(image))
 }
 

@@ -158,7 +158,7 @@ func (app *WallpaperApp) GenerateWallpaperImage(montage *Montage) {
 		err = ioutil.WriteFile(filename, jpegData, os.ModePerm)
 	}
 	if montage.Config.Publish {
-		output := app.pub.GetOutputByDevice(montage.Config.ID, types.OutputTypeImage, types.DefaultOutputInstance)
+		output := app.pub.GetOutputByNodeHWID(montage.Config.ID, types.OutputTypeImage, types.DefaultOutputInstance)
 		app.pub.PublishRaw(output, false, string(jpegData))
 	}
 
@@ -191,7 +191,7 @@ func NewWallpaperApp(config *AppConfig, pub *publisher.Publisher) *WallpaperApp 
 func Run() {
 	appConfig := &AppConfig{}
 	appConfig.Wallpapers = make([]*MontageConfig, 0)
-	pub, _ := publisher.NewAppPublisher(AppID, "", appConfig, true)
+	pub, _ := publisher.NewAppPublisher(AppID, "", appConfig, "", true)
 
 	NewWallpaperApp(appConfig, pub)
 

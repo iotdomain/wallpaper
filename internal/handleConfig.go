@@ -7,7 +7,7 @@ import (
 )
 
 // HandleConfigCommand handles requests to update node configuration
-func (app *WallpaperApp) HandleConfigCommand(address string, config types.NodeAttrMap) types.NodeAttrMap {
-	logrus.Infof("Wallpaper.HandleConfigCommand for %s. ", address)
-	return config
+func (app *WallpaperApp) HandleConfigCommand(nodeHWID string, config types.NodeAttrMap) {
+	logrus.Infof("Wallpaper.HandleConfigCommand for node %s. ", nodeHWID)
+	app.pub.UpdateNodeConfigValues(nodeHWID, config)
 }

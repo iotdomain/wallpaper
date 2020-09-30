@@ -70,7 +70,7 @@ var config2 = &MontageConfig{
 // Create a montage and layout 2 images onto its canvas
 func TestMontageLayout(t *testing.T) {
 	os.Remove(TestMontageFile)
-	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
+	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, "", false)
 	app := NewWallpaperApp(appConfig, pub)
 	montage := app.CreateWallpaper(&config1)
 	assert.NotNil(t, montage)
@@ -88,7 +88,7 @@ func TestMontageLayout(t *testing.T) {
 
 // Combine 4 test images into a montage and save as tmp/montage2.jpeg
 func TestImageUpdate(t *testing.T) {
-	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
+	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, "", false)
 	app := NewWallpaperApp(appConfig, pub)
 	montage := app.CreateWallpaper(config2)
 
@@ -111,7 +111,7 @@ func TestImageUpdate(t *testing.T) {
 
 func BenchmarkWallpaper(b *testing.B) {
 	os.Remove(TestMontageFile)
-	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, false)
+	pub, _ := publisher.NewAppPublisher(AppID, configFolder, appConfig, "", false)
 	app := NewWallpaperApp(appConfig, pub)
 	montage := app.CreateWallpaper(config2)
 
